@@ -12,27 +12,25 @@ from property.models    import Property
 from reservation.models import Reservation
 from django.db.models   import Count, Avg
 
-def login_decorator(func):
-    def wrapper(self, request, *args, **kwargs):
-        try:
+
+def login_decorator(required=True):
+    def decorator(func):
+        def wrapper(self, request, *args, **kwargs):
+
             access_token = request.headers.get('Authorization', None)
-            if not access_token:
-                request.user = False
+
+            if not required and not access_token:
+                request.user = None
                 return func(self, request, *args, **kwargs)
+
             payload      = jwt.decode(access_token, SECRET_KEY_JWT, algorithm=ALGORITHM)
             user         = User.objects.get(id=payload['id'])
             request.user = user
-
-        except jwt.exceptions.DecodeError:
-            request.user=False
+    
             return func(self, request, *args, **kwargs)
-        except User.DoesNotExist:
-            request.user=False
-            return func(self, request, *args, **kwargs)
-
-        return func(self, request, *args, **kwargs)
-
-    return wrapper
+    
+        return wrapper
+    return decorator
 
 
 def validate_email(email):
@@ -66,8 +64,8 @@ def check_availability(property, check_in, check_out):
     check_out     = datetime.date(check_out)
     availability = []
     for booking in bookings:
-        #   check_in: 2020-01-09,   check_out: 2020-01-11
-        # b_check_in: 2020-01-05, b_check_out: 2020-01-08
+        # check_in: 2020-01-09,         check_out: 2020-01-11
+        # booking check_in: 2020-01-05, booking check_out: 2020-01-08
         if booking.check_in > check_out or booking.check_out < check_in:
             availability.append(True)
         else:
@@ -75,13 +73,22 @@ def check_availability(property, check_in, check_out):
     return all(availability)
 
 def validate_review_set(property):
+
+    # 숙소가 존재하지 않는경우 키에러가 발생하기 때문에 존재하는지 먼저 체크해준다.
     if property.review_set.exists():
-        sum = property.review_set.aggregate(cleanliness=Avg('cleanliness'))['cleanliness'] +\
-            property.review_set.aggregate(communication=Avg('communication'))['communication'] +\
-            property.review_set.aggregate(check_in=Avg('check_in'))['check_in'] +\
-            property.review_set.aggregate(accuracy=Avg('accuracy'))['accuracy'] +\
-            property.review_set.aggregate(location=Avg('location'))['location'] +\
-            property.review_set.aggregate(affordability=Avg('affordability'))['affordability']
-        result = sum/6
-        return result
+        rate = {}
+        rate['propertyCleanliness']   = property.review_set.aggregate(cleanliness=Avg('cleanliness'))['cleanliness']
+        rate['propertyCommunication'] = property.review_set.aggregate(communication=Avg('communication'))['communication']
+        rate['propertyCheckIn']       = property.review_set.aggregate(check_in=Avg('check_in'))['check_in']
+        rate['propertyAccuracy']      = property.review_set.aggregate(accuracy=Avg('accuracy'))['accuracy']
+        rate['propertyLocation']      = property.review_set.aggregate(location=Avg('location'))['location']
+        rate['propertyAffordability'] = property.review_set.aggregate(affordability=Avg('affordability'))['affordability']
+
+        rate['propertyRate'] = (rate['propertyCleanliness'] +\
+                rate['propertyCommunication'] +\
+                rate['propertyCheckIn'] +\
+                rate['propertyAccuracy'] +\
+                rate['propertyLocation'] +\
+                rate['propertyAffordability'])/6
+        return rate
     return False

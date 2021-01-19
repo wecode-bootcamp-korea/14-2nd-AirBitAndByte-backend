@@ -5,13 +5,14 @@ from django.http      import JsonResponse
 
 from django.views     import View
 from django.db.models import Q, Avg, Count
+from django.core.exceptions import DoesNotExist
 
 from .models          import Property, PropertyImage
 from core.utils       import login_decorator, date_parser, check_availability, validate_check_in_out_date, validate_date_format, validate_review_set
 
 class PropertyListView(View):
 
-    @login_decorator
+    @login_decorator(required=False)
     def get(self, request):
         try:
             sort         = request.GET.get('sort', '0')
@@ -26,18 +27,18 @@ class PropertyListView(View):
             max          = request.GET.get('max', '100000000')
             min          = request.GET.get('min', '0')
 
-            check_in = request.GET.get('check_in', '5000-01-01')
-
-
             sort_set={
                 '0': 'id',
                 '1': '-review_count'
             }
 
+            check_in = request.GET.get('check_in', '5000-01-01')
+            # 입력받은 check_in 값의 포멧을 체크해준다.
             if not validate_date_format(check_in):
                 return JsonResponse({'message':'Invalid_date_format'}, status=400)
 
             check_out = request.GET.get('check_out', '5000-01-10')
+            # 입력받은 check_out 값의 포멧을 체크해준다.
             if not validate_date_format(check_out):
                 return JsonResponse({'message':'Invalid_date_format'}, status=400)
 
@@ -63,11 +64,14 @@ class PropertyListView(View):
                 conditions['facility__id__in'] = facility
             if number_of_guest:
                 conditions['capacity__lte'] = number_of_guest
+
+            # 입력받은 값을 백엔드에서 다루기쉽게 데이트타임 객체로 바꾸어준다.
             if check_in:
                 check_in  = date_parser(check_in)
             if check_out:
                 check_out = date_parser(check_out)
 
+            # 체크아웃 데이트가 체크인 보다 클경우 예외처리
             if not validate_check_in_out_date(check_in, check_out):
                 return JsonResponse({'message':'Invalid_date'}, status=400)
 
@@ -87,7 +91,8 @@ class PropertyListView(View):
                                  'type').\
                 annotate(review_count=Count('review')).\
                 filter(query, **conditions).order_by(sort_set[sort])
-
+            
+            
             available_rooms = [property for property in properties if check_availability(property, check_in, check_out)]
 
             context = [
@@ -109,7 +114,7 @@ class PropertyListView(View):
                     'numberOfReviews' : property.review_set.count(),
                     'rate'            : validate_review_set(property)
                 }
-                for property in  available_rooms[offset:offset+limit]
+                for property in available_rooms[offset:offset+limit]
             ]
 
             return JsonResponse({'result':context}, status=200)
@@ -119,10 +124,9 @@ class PropertyListView(View):
 
 class PropertyDetailView(View):
 
-    @login_decorator
+    @login_decorator(required=False)
     def get(self, request, property_id):
         try:
-
             property = Property.objects.\
                 select_related('host',
                                'refund').\
@@ -143,16 +147,8 @@ class PropertyDetailView(View):
             context = {
                 'propertyId'     : property.id,
                 'propertyName'   : property.title,
-                'rate'           : {
-                    'propertyRate'         : validate_review_set(property),
-                    'propertyCleanliness'  : property.review_set.aggregate(Avg('cleanliness'))['cleanliness__avg'],
-                    'propertyCommunication' : property.review_set.aggregate(Avg('communication'))['communication__avg'],
-                    'propertyCheckIn'       : property.review_set.aggregate(Avg('check_in'))['check_in__avg'],
-                    'propertyAccuracy'      : property.review_set.aggregate(Avg('accuracy'))['accuracy__avg'],
-                    'propertyLocation'      : property.review_set.aggregate(Avg('location'))['location__avg'],
-                    'propertyAffordability' : property.review_set.aggregate(Avg('affordability'))['affordability__avg']
-                },
-
+                # 평점은 validate_review_set 함수를 호출하여 조회해준다.
+                'rate'           : validate_review_set(property),
                 'propertyImages' : [image.url for image in property.propertyimage_set.all()],
                 'country'        : property.country.name,
                 'province'       : property.province.name,
@@ -197,7 +193,6 @@ class PropertyDetailView(View):
                         'propertyImage' : [image.url for image in property.propertyimage_set.all()],
                         'price'         : property.price,
                         'isSupered'       : property.host.is_super,
-                        'isBookmarked'  : property.bookmark_set.filter(user=request.user).exists(),
                         'sizes': [
                             {
                                 'sizeName'   : size.name,
@@ -212,3 +207,6 @@ class PropertyDetailView(View):
             return JsonResponse({'result':context}, status=200)
         except KeyError:
             return JsonResponse({'message':'KeyError'}, status=400)
+        except DoesNotExist:
+            return JsonResponse({'message':'PropertyDoesNotExist'}, status=400)
+

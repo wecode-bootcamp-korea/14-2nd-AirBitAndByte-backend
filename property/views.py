@@ -5,7 +5,6 @@ from django.http      import JsonResponse
 
 from django.views     import View
 from django.db.models import Q, Avg, Count
-from django.core.exceptions import DoesNotExist
 
 from .models          import Property, PropertyImage
 from core.utils       import login_decorator, date_parser, check_availability, validate_check_in_out_date, validate_date_format, validate_review_set

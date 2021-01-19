@@ -10,21 +10,11 @@ from property.models    import Property
 
 class ReservationView(View):
 
-    @login_decorator
+    @login_decorator(required=True)
     def get(self, request):
         try:
-            if not request.user:
-                return JsonResponse({'message':'Invalid_user'}, status=400)
+            bookings = Reservation.objects.all()
 
-            status = request.GET.get('status', None)
-
-            conditions = {}
-
-            if status:
-                conditions['status_id'] = status
-            conditions['user_id']   = request.user.id
-
-            bookings = Reservation.objects.select_related('user', 'property', 'size', 'status').filter(**conditions)
             context  = [
                 {
                     'user'         : booking.user.email,

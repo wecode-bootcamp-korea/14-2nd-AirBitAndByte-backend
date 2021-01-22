@@ -146,6 +146,7 @@ class PropertyDetailView(View):
             context = {
                 'propertyId'     : property.id,
                 'propertyName'   : property.title,
+
                 # 평점은 validate_review_set 함수를 호출하여 조회해준다.
                 'rate'           : validate_review_set(property),
                 'propertyImages' : [image.url for image in property.propertyimage_set.all()],
@@ -206,6 +207,4 @@ class PropertyDetailView(View):
             return JsonResponse({'result':context}, status=200)
         except KeyError:
             return JsonResponse({'message':'KeyError'}, status=400)
-        except DoesNotExist:
-            return JsonResponse({'message':'PropertyDoesNotExist'}, status=400)
 

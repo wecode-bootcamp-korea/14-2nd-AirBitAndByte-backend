@@ -1,3 +1,4 @@
+from json.decoder import JSONDecodeError
 import jwt
 import re
 import json
@@ -16,18 +17,19 @@ from django.db.models   import Count, Avg
 def login_decorator(required=True):
     def decorator(func):
         def wrapper(self, request, *args, **kwargs):
+            try:
+                access_token = request.headers.get('Authorization', None)
+                if not required and not access_token:
+                    request.user = None
+                    return func(self, request, *args, **kwargs)
 
-            access_token = request.headers.get('Authorization', None)
-
-            if not required and not access_token:
-                request.user = None
-                return func(self, request, *args, **kwargs)
-
-            payload      = jwt.decode(access_token, SECRET_KEY_JWT, algorithm=ALGORITHM)
-            user         = User.objects.get(id=payload['id'])
-            request.user = user
+                payload      = jwt.decode(access_token, SECRET_KEY_JWT, algorithm=ALGORITHM)
+                user         = User.objects.get(id=payload['id'])
+                request.user = user
     
-            return func(self, request, *args, **kwargs)
+                return func(self, request, *args, **kwargs)
+            except jwt.DecodeError:
+                return JsonResponse({'message':'Invalid_token'}, status=400)
     
         return wrapper
     return decorator

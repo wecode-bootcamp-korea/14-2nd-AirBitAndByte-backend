@@ -3,77 +3,32 @@ import json
 from django.http        import JsonResponse
 from django.views       import View
 
-from reservation.models import Reservation
-from core.utils         import login_decorator, date_parser, check_availability
-from property.models    import Property
+from core.utils         import date_parser, login_decorator
+from .models            import Reservation
 
 
-class ReservationView(View):
+
+class PaymentView(View):
 
     @login_decorator(required=True)
-    def get(self, request):
+    def post(self, request, property_id):
         try:
-            bookings = Reservation.objects.all()
+            data      = json.loads(request.body)
+            check_in  = date_parser(data['check_in'])
+            check_out = date_parser(data['check_out'])
 
-            context  = [
-                {
-                    'user'         : booking.user.email,
-                    'property_id'  : booking.property.id,
-                    'propertyName' : booking.property.title,
-                    'checkIn'      : booking.check_in,
-                    'checkout'     : booking.check_out,
-                    'size'         : booking.size.name,
-                    'sizeContent'  : booking.size.content,
-                    'status'       : booking.status.name
-                }
-                for booking in bookings
-            ]
-            return JsonResponse({'result':context}, status=200)
-
-        except KeyError:
-            return JsonResponse({'message':'KeyError'}, status=400)
-
-    @login_decorator
-    def post(self, request):
-        try:
-            if not request.user:
-                return JsonResponse({'message':'Invalid_user'}, status=400)
-            data            = json.loads(request.body)
-            check_in        = date_parser(data['checkIn'])
-            check_out       = date_parser(data['checkOut'])
-
-            if check_in == check_out:
-                return JsonResponse({'message':'Not_Available'}, status=400)
-            property = Property.objects.get(id=data['propertyId'])
-
-            if not check_availability(property, check_in, check_out):
-                return JsonResponse({'message':'Not_Available'}, status=400)
-
-            Reservation.objects.create(
-                user        = request.user,
-                property_id = data['propertyId'],
-                check_in    = check_in,
-                check_out   = check_out,
-                size_id     = data['sizeId'],
-                status_id   = data['statusId']
-            )
+            result = Reservation.objects.create(property_id = property_id,
+                    size_id   = data['size_id'],
+                    status_id = 2,
+                    user_id   = request.user.id,
+                    check_in  = check_in,
+                    check_out = check_out,
+                    adult     = data['adult'],
+                    child     = data['child'],
+                    infant    = data['infant'])
             return JsonResponse({'message': 'Success'}, status=200)
 
         except KeyError:
             return JsonResponse({'message': 'KeyError'}, status=400)
 
 
-class PaymentView(View):
-
-    @login_decorator
-    def patch(self, request, reservation_id):
-        try:
-            if not request.user:
-                return JsonResponse({'message':'Invalid_user'}, status=400)
-            reservation    = Reservation.objects.get(id=reservation_id)
-            reservation.status_id= 2
-            reservation.save()
-            return JsonResponse({'message':'Success'}, status=200)
-
-        except KeyError:
-            return JsonResponse({'message':'KeyError'}, status=400)

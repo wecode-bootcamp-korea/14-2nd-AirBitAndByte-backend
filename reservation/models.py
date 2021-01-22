@@ -11,6 +11,9 @@ class Reservation(TimeStampedModel):
     check_out = models.DateField(auto_now_add=False)
     size      = models.ForeignKey('property.Size', on_delete=models.CASCADE)
     status    = models.ForeignKey('Status', on_delete=models.CASCADE)
+    adult     = models.CharField(max_length=10)
+    child     = models.CharField(max_length=10)
+    infant     = models.CharField(max_length=10)
 
     class Meta:
         db_table = 'reservations'

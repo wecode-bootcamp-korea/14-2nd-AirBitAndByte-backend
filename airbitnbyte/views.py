@@ -10,6 +10,8 @@ from reservation.models import Reservation
 class ReservationView(View):
     
     @login_decorator(required=True)
+
+    # 이미지를 넣어하는데 방법을 찾아야함! 
     def get(self, request):
         try:
             reservations = Reservation.objects.select_related(

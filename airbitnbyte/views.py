@@ -22,10 +22,10 @@ class ReservationView(View):
                     ).filter(user=request.user)
     
             context = [{
-                'reservation_id': reservation.id,
-                'created_at': reservation.created_at,
-                'check_in': reservation.check_in,
-                'property_id': reservation.property_id,
+                'reservationId': reservation.id,
+                'createdAt': reservation.created_at,
+                'checkIn': reservation.check_in,
+                'propertId': reservation.property_id,
                 'title': reservation.property.title,
                 'content': reservation.property.content,
                 'capacity': reservation.property.capacity,
@@ -33,8 +33,8 @@ class ReservationView(View):
                 'child': reservation.child,
                 'infant': reservation.infant,
                 'price': reservation.property.price,
-                'status_id': reservation.status_id,
-                'status_name': reservation.status.name
+                'statusId': reservation.status_id,
+                'statusName': reservation.status.name
                 }
                 for reservation in reservations
                 ]

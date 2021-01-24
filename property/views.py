@@ -115,6 +115,11 @@ class PropertyListView(View):
                 }
                 for property in available_rooms[offset:offset+limit]
             ]
+            total_count = {
+                    'totalCount': len(available_rooms[offset:offset+limit])
+                    }
+            context.append(total_count)
+
 
             return JsonResponse({'result':context}, status=200)
         except KeyError:

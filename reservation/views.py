@@ -14,11 +14,11 @@ class PaymentView(View):
     def post(self, request, property_id):
         try:
             data      = json.loads(request.body)
-            check_in  = date_parser(data['check_in'])
-            check_out = date_parser(data['check_out'])
+            check_in  = date_parser(data['checkIn'])
+            check_out = date_parser(data['checkOut'])
 
             result = Reservation.objects.create(property_id = property_id,
-                    size_id   = data['size_id'],
+                    size_id   = data['sizeId'],
                     status_id = 2,
                     user_id   = request.user.id,
                     check_in  = check_in,
